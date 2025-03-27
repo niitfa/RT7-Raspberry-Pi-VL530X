@@ -44,17 +44,36 @@ void DistSensor_enable(DistSensor_t* self)
 	VL53L0X_reg_callbacks(&self->vl53l0x, i2c_receive, i2c_transmit, sleep_us);
 	VL53L0X_setup(&self->vl53l0x, 0.25);
 	sleep_us(200 * 1000);
+	self->status = DIST_SENSOR_STANDBY;
 }
 
 void DistSensor_disable(DistSensor_t* self)
 {
 	bcm2835_i2c_end();
 	bcm2835_gpio_clr(self->gpioPowerPin);
+	self->status = DIST_SENSOR_DISABLED;
 }
 
 void DistSensor_update(DistSensor_t* self)
 {
-	self->raw_dist_mm = VL53L0X_read_single_mm(&self->vl53l0x);
+	// without handling wrong values
+	// self->raw_dist_mm = VL53L0X_read_single_mm(&self->vl53l0x);
+	// with handling wrong values
+	int dist = VL53L0X_read_single_mm(&self->vl53l0x);
+	if (dist == 8190 || dist == 8191)
+	{
+		self->status = DIST_SENSOR_OUT_OF_RANGE;
+	}
+	else if (dist == 65535)
+	{
+		self->status = DIST_SENSOR_RECEIVE_ERR;
+	}
+	else
+	{
+		self->status = DIST_SENSOR_OK;
+		self->raw_dist_mm = dist;
+	}
+
 	moving_average_add(&self->aver, self->raw_dist_mm);	
 }
 
@@ -66,6 +85,11 @@ int DistSensor_get_raw_distance_mm(DistSensor_t* self)
 float DistSensor_get_smoothed_distance_mm(DistSensor_t* self)
 {
 	return moving_average_get(&self->aver);	
+}
+
+DistSensorStatus_t DistSensor_get_status(DistSensor_t* self)
+{
+	return self->status;
 }
 
 static void i2c_receive (uint8_t DevAddr, uint8_t* pData, uint16_t len)

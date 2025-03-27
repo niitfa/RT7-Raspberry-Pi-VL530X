@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
 	{
 		DistSensor_update(&sensor);
 
-		printf("Frame: %i\tDistance: %i mm\n", frame_no++, DistSensor_get_raw_distance_mm(&sensor) );
+		printf("Frame: %i\tDistance: %i mm\tst: %i\n", frame_no++, DistSensor_get_raw_distance_mm(&sensor), DistSensor_get_status(&sensor) );
 		clock_gettime(CLOCK_REALTIME, &stop);
 		int time_ms = ( (stop.tv_sec) * 1000000000 + (stop.tv_nsec) ) / 1000000;
 		fprintf(fp, "%i\t%f\t%i\n",
