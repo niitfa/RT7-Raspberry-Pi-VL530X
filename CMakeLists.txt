@@ -20,6 +20,9 @@ file(GLOB_RECURSE headers ${source_dir}/*${header_ext})
 add_executable(${exec_target} main${source_ext} ${sources})
 add_executable(${off_target} off${source_ext} ${sources})
 
+target_link_libraries(${exec_target} m)
+target_link_libraries(${off_target} m)
+
 # Set headers
 foreach(_header ${headers})
     get_filename_component(_include_dir ${_header} DIRECTORY)

@@ -22,6 +22,7 @@ typedef struct
 	int raw_dist_mm;
 	moving_average_t aver;
 	DistSensorStatus_t status;
+	uint8_t emulated;
 } DistSensor_t;
 
 /**
@@ -44,6 +45,13 @@ void DistSensor_enable(DistSensor_t* self);
  * @param[in] self DistSensor_t instance pointer.
 */
 void DistSensor_disable(DistSensor_t* self);
+
+/**
+ * @brief Enables / disables emulation
+ * @param[in] self DistSensor_t instance pointer.
+ * @param[in] emul Emulaton flag.
+*/
+void DistSensor_set_emulated(DistSensor_t* self, uint8_t emul);
 
 /**
  * @brief Sends single measurement command on I2C bus, reads measured distance
