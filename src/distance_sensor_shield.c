@@ -32,21 +32,18 @@ int DistSensor_init(int averaging)
 
 	// Not emulated by default
 	DistSensor_set_emulated(0);
+	moving_average_init(&sensor.aver, averaging, 0);
 	
 	if(!bcm2835_init())
 	{
 		return -1;
 	}
-
-	// setup gpio pin
-	bcm2835_gpio_fsel(sensor.gpioPowerPin, BCM2835_GPIO_FSEL_OUTP);
-
-	// init moving anerage
-	moving_average_init(&sensor.aver, averaging, 0);
-
-	// power off
+	else
+	{
+		bcm2835_gpio_fsel(sensor.gpioPowerPin, BCM2835_GPIO_FSEL_OUTP);	
+	}
+	
 	DistSensor_disable();
-
 	return 0;
 }
 

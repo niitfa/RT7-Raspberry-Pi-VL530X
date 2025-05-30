@@ -30,7 +30,10 @@ int main(int argc, char* argv[])
 	while(1)
 	{
 		DistSensor_update();
-		printf("Frame: %i\tDistance: %i mm\tst: %i\n", frame_no++, DistSensor_get_raw_distance_mm(), DistSensor_get_status() );
+		printf("Frame: %i\tDistance: %i mm\tSmoothed: %f\tst: %i\n", frame_no++,
+		 DistSensor_get_raw_distance_mm(),
+			DistSensor_get_smoothed_distance_mm(),
+			DistSensor_get_status() );
 		clock_gettime(CLOCK_REALTIME, &stop);
 		int time_ms = ( (stop.tv_sec) * 1000000000 + (stop.tv_nsec) ) / 1000000;
 		fprintf(fp, "%i\t%f\t%i\n",
