@@ -12,12 +12,9 @@
 
 int main(int argc, char* argv[])
 {
-	DistSensor_t sensor;
-
-	DistSensor_init(&sensor, 4);
-	DistSensor_disable(&sensor);
+	DistSensor_init(4);
+	DistSensor_disable();
 	printf("VL53L0X board is disabled.\n");
-
 
 	return 0;
 }

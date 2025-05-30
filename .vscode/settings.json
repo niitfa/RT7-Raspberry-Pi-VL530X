@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "stdio.h": "c",
+        "distance_sensor_shield.h": "c"
+    }
+}

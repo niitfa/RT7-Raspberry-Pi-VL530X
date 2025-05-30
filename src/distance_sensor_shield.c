@@ -7,19 +7,31 @@
 #include <math.h>
 #include <time.h>
 
+typedef struct 
+{
+	VL53L0X_t vl53l0x;
+	RPiGPIOPin gpioPowerPin;
+	int raw_dist_mm;
+	moving_average_t aver;
+	DistSensorStatus_t status;
+	uint8_t emulated;
+} DistSensor_t;
+
+static DistSensor_t sensor;
+
 static const uint8_t ADDRESS = (0x52 >> 1);
 
 static void i2c_receive (uint8_t DevAddr, uint8_t* pData, uint16_t len);
 static void i2c_transmit (uint8_t DevAddr, uint8_t* pData, uint16_t len);
 static void sleep_us (uint32_t us);
 
-int DistSensor_init(DistSensor_t* self, int averaging)
+int DistSensor_init(int averaging)
 {
-	memset(self, 0, sizeof(*self));
-	self->gpioPowerPin = RPI_GPIO_P1_07;
+	memset(&sensor, 0, sizeof(sensor));
+	sensor.gpioPowerPin = RPI_GPIO_P1_07;
 
 	// Not emulated by default
-	DistSensor_set_emulated(self, 0);
+	DistSensor_set_emulated(0);
 	
 	if(!bcm2835_init())
 	{
@@ -27,29 +39,29 @@ int DistSensor_init(DistSensor_t* self, int averaging)
 	}
 
 	// setup gpio pin
-	bcm2835_gpio_fsel(self->gpioPowerPin, BCM2835_GPIO_FSEL_OUTP);
+	bcm2835_gpio_fsel(sensor.gpioPowerPin, BCM2835_GPIO_FSEL_OUTP);
 
 	// init moving anerage
-	moving_average_init(&self->aver, averaging, 0);
+	moving_average_init(&sensor.aver, averaging, 0);
 
 	// power off
-	DistSensor_disable(self);
+	DistSensor_disable();
 
 	return 0;
 }
 
-void DistSensor_enable(DistSensor_t* self)
+void DistSensor_enable()
 {
-	if (!self->emulated)
+	if (!sensor.emulated)
 	{
-		bcm2835_gpio_set(self->gpioPowerPin);
+		bcm2835_gpio_set(sensor.gpioPowerPin);
 		bcm2835_i2c_begin();
 		bcm2835_i2c_setSlaveAddress(ADDRESS);
 		bcm2835_i2c_setClockDivider(2500 * 1); // 2500 => 100 kHz, 5000 => 50 kHz, ...
 		sleep_us(200 * 1000);
-		VL53L0X_init(&self->vl53l0x, ADDRESS);
-		VL53L0X_reg_callbacks(&self->vl53l0x, i2c_receive, i2c_transmit, sleep_us);
-		VL53L0X_setup(&self->vl53l0x, 0.25);
+		VL53L0X_init(&sensor.vl53l0x, ADDRESS);
+		VL53L0X_reg_callbacks(&sensor.vl53l0x, i2c_receive, i2c_transmit, sleep_us);
+		VL53L0X_setup(&sensor.vl53l0x, 0.25);
 		sleep_us(200 * 1000);
 	}
 	else
@@ -57,28 +69,28 @@ void DistSensor_enable(DistSensor_t* self)
 		srand(time(NULL)); 
 	}
 
-	self->status = DIST_SENSOR_STANDBY;
+	sensor.status = DIST_SENSOR_STANDBY;
 }
 
-void DistSensor_disable(DistSensor_t* self)
+void DistSensor_disable()
 {
-	if (!self->emulated)
+	if (!sensor.emulated)
 	{
 		bcm2835_i2c_end();
-		bcm2835_gpio_clr(self->gpioPowerPin);
+		bcm2835_gpio_clr(sensor.gpioPowerPin);
 	}
 
-	self->status = DIST_SENSOR_DISABLED;
+	sensor.status = DIST_SENSOR_DISABLED;
 }
 
-void DistSensor_set_emulated(DistSensor_t* self, uint8_t emul)
+void DistSensor_set_emulated(uint8_t emul)
 {
-	self->emulated = emul;
+	sensor.emulated = emul;
 }
 
-void DistSensor_update(DistSensor_t* self)
+void DistSensor_update()
 {
-	if(!self->emulated) 
+	if(!sensor.emulated) 
 	{
 		// Not emulated sensor section
 
@@ -86,21 +98,21 @@ void DistSensor_update(DistSensor_t* self)
 		// self->raw_dist_mm = VL53L0X_read_single_mm(&self->vl53l0x);
 		// with handling bad values
 
-		int dist = VL53L0X_read_single_mm(&self->vl53l0x);
+		int dist = VL53L0X_read_single_mm(&sensor.vl53l0x);
 		if (dist == 8190 || dist == 8191)
 		{
-			self->status = DIST_SENSOR_OUT_OF_RANGE;
+			sensor.status = DIST_SENSOR_OUT_OF_RANGE;
 		}
 		else if (dist == 65535)
 		{
-			self->status = DIST_SENSOR_RECEIVE_ERR;
+			sensor.status = DIST_SENSOR_RECEIVE_ERR;
 		}
 		else
 		{
-			self->status = DIST_SENSOR_OK;
-			self->raw_dist_mm = dist;
+			sensor.status = DIST_SENSOR_OK;
+			sensor.raw_dist_mm = dist;
 		}
-		moving_average_add(&self->aver, self->raw_dist_mm);
+		moving_average_add(&sensor.aver, sensor.raw_dist_mm);
 	}
 	else
 	{
@@ -119,10 +131,10 @@ void DistSensor_update(DistSensor_t* self)
 		uint64_t t_ms = ( ts.tv_sec % 1000000 ) * 1000 + ts.tv_nsec / 1000000;
 
 		// set ok status
-		self->status = DIST_SENSOR_OK;
+		sensor.status = DIST_SENSOR_OK;
 
 		// calc sine
-		self->raw_dist_mm = (int) round (
+		sensor.raw_dist_mm = (int) round (
 			SINE_OFFSET_MM + 
 			rand() % (2 * SINE_SPREAD_MM) -  SINE_SPREAD_MM +
 			SINE_MAGNITIDE_MM * sin( 2 * PI * (double)t_ms / 1000 / SINE_PERIOD_S )
@@ -130,25 +142,25 @@ void DistSensor_update(DistSensor_t* self)
 
 		// ~30 ms sleep is near to i2c bus exchanche time
 		usleep(30 * 1000);
-		moving_average_add(&self->aver, self->raw_dist_mm);
+		moving_average_add(&sensor.aver, sensor.raw_dist_mm);
 	}
 
 	
 }
 
-int DistSensor_get_raw_distance_mm(DistSensor_t* self)
+int DistSensor_get_raw_distance_mm()
 {
-	return self->raw_dist_mm;
+	return sensor.raw_dist_mm;
 }
 
-float DistSensor_get_smoothed_distance_mm(DistSensor_t* self)
+float DistSensor_get_smoothed_distance_mm()
 {
-	return moving_average_get(&self->aver);	
+	return moving_average_get(&sensor.aver);	
 }
 
-DistSensorStatus_t DistSensor_get_status(DistSensor_t* self)
+DistSensorStatus_t DistSensor_get_status()
 {
-	return self->status;
+	return sensor.status;
 }
 
 static void i2c_receive (uint8_t DevAddr, uint8_t* pData, uint16_t len)

@@ -14,11 +14,9 @@
 
 int main(int argc, char* argv[])
 {
-	DistSensor_t sensor;
-
-	DistSensor_init(&sensor, 4);
-	DistSensor_set_emulated(&sensor, 1);
-	DistSensor_enable(&sensor);
+	DistSensor_init(4);
+	DistSensor_set_emulated(1);
+	DistSensor_enable();
 
 
 	char * filename = "dist.txt";
@@ -31,13 +29,13 @@ int main(int argc, char* argv[])
 	int frame_no = 0;
 	while(1)
 	{
-		DistSensor_update(&sensor);
-		printf("Frame: %i\tDistance: %i mm\tst: %i\n", frame_no++, DistSensor_get_raw_distance_mm(&sensor), DistSensor_get_status(&sensor) );
+		DistSensor_update();
+		printf("Frame: %i\tDistance: %i mm\tst: %i\n", frame_no++, DistSensor_get_raw_distance_mm(), DistSensor_get_status() );
 		clock_gettime(CLOCK_REALTIME, &stop);
 		int time_ms = ( (stop.tv_sec) * 1000000000 + (stop.tv_nsec) ) / 1000000;
 		fprintf(fp, "%i\t%f\t%i\n",
-			DistSensor_get_raw_distance_mm(&sensor),
-			DistSensor_get_smoothed_distance_mm(&sensor),
+			DistSensor_get_raw_distance_mm(),
+			DistSensor_get_smoothed_distance_mm(),
 			time_ms - time_start_ms);
 		fflush(fp);
 	}
