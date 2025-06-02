@@ -6,3 +6,4 @@ run
 off
 CMakeFiles/
 dist.txt
+libDistSensor.so
