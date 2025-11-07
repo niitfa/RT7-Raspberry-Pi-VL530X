@@ -10,7 +10,7 @@
 typedef struct 
 {
 	VL53L0X_t vl53l0x;
-	RPiGPIOPin gpioPowerPin;
+	int gpioPowerPin; // was RPiGPIOPind
 	int raw_dist_mm;
 	moving_average_t aver;
 	DistSensorStatus_t status;
@@ -21,6 +21,8 @@ static DistSensor_t sensor;
 
 static const uint8_t ADDRESS = (0x52 >> 1);
 
+static void i2c_init();
+static void i2c_deinit();
 static void i2c_receive (uint8_t DevAddr, uint8_t* pData, uint16_t len);
 static void i2c_transmit (uint8_t DevAddr, uint8_t* pData, uint16_t len);
 static void sleep_us (uint32_t us);
@@ -28,12 +30,16 @@ static void sleep_us (uint32_t us);
 int DistSensor_init(int averaging)
 {
 	memset(&sensor, 0, sizeof(sensor));
+#ifdef RGATE_RASPBERRY_PI_4
 	sensor.gpioPowerPin = RPI_GPIO_P1_07;
-
+#endif
+#ifdef RGATE_ORANGE_PI_5_PLUS
+#endif
 	// Not emulated by default
 	DistSensor_set_emulated(0);
 	moving_average_init(&sensor.aver, averaging, 0);
 	
+#ifdef RGATE_RASPBERRY_PI_4
 	if(!bcm2835_init())
 	{
 		return -1;
@@ -42,6 +48,10 @@ int DistSensor_init(int averaging)
 	{
 		bcm2835_gpio_fsel(sensor.gpioPowerPin, BCM2835_GPIO_FSEL_OUTP);	
 	}
+#endif
+#ifdef RGATE_ORANGE_PI_5_PLUS
+	
+#endif
 	
 	DistSensor_disable();
 	return 0;
@@ -51,10 +61,7 @@ void DistSensor_enable()
 {
 	if (!sensor.emulated)
 	{
-		bcm2835_gpio_set(sensor.gpioPowerPin);
-		bcm2835_i2c_begin();
-		bcm2835_i2c_setSlaveAddress(ADDRESS);
-		bcm2835_i2c_setClockDivider(2500 * 1); // 2500 => 100 kHz, 5000 => 50 kHz, ...
+		i2c_init();
 		sleep_us(200 * 1000);
 		VL53L0X_init(&sensor.vl53l0x, ADDRESS);
 		VL53L0X_reg_callbacks(&sensor.vl53l0x, i2c_receive, i2c_transmit, sleep_us);
@@ -73,8 +80,7 @@ void DistSensor_disable()
 {
 	if (!sensor.emulated)
 	{
-		bcm2835_i2c_end();
-		bcm2835_gpio_clr(sensor.gpioPowerPin);
+		i2c_deinit();
 	}
 
 	sensor.status = DIST_SENSOR_DISABLED;
@@ -160,17 +166,56 @@ DistSensorStatus_t DistSensor_get_status()
 	return sensor.status;
 }
 
+static void i2c_init()
+{
+#ifdef RGATE_RASPBERRY_PI_4
+	bcm2835_gpio_set(sensor.gpioPowerPin);
+	bcm2835_i2c_begin();
+	bcm2835_i2c_setSlaveAddress(ADDRESS);
+	bcm2835_i2c_setClockDivider(2500 * 1); // 2500 => 100 kHz, 5000 => 50 kHz, ...
+#endif
+#ifdef RGATE_ORANGE_PI_5_PLUS
+//
+#endif
+}
+
+static void i2c_deinit()
+{
+#ifdef RGATE_RASPBERRY_PI_4
+		bcm2835_i2c_end();
+		bcm2835_gpio_clr(sensor.gpioPowerPin);
+#endif
+#ifdef RGATE_ORANGE_PI_5_PLUS
+//
+#endif	
+}
+
 static void i2c_receive (uint8_t DevAddr, uint8_t* pData, uint16_t len)
 {
+#ifdef RGATE_RASPBERRY_PI_4
 	bcm2835_i2c_read(pData, len);
+#endif
+#ifdef RGATE_ORANGE_PI_5_PLUS
+//
+#endif
 }
 
 static void i2c_transmit (uint8_t DevAddr, uint8_t* pData, uint16_t len)
 {
+#ifdef RGATE_RASPBERRY_PI_4
 	bcm2835_i2c_write(pData, len);
+#endif
+#ifdef RGATE_ORANGE_PI_5_PLUS
+//
+#endif
 }
 
 static void sleep_us (uint32_t us)
 {
+#ifdef RGATE_RASPBERRY_PI_4
 	usleep(us);
+#endif	
+#ifdef RGATE_ORANGE_PI_5_PLUS
+//
+#endif
 }

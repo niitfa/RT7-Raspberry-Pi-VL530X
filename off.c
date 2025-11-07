@@ -3,7 +3,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#include "bcm2835.h"
 #include "distance_sensor_shield.h"
 
 #include <stdio.h>

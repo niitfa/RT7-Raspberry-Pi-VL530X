@@ -2,9 +2,21 @@
 #define DISTANCE_SENSOR_SHIELD_H
 
 #include <stdio.h>
-#include "bcm2835.h"
 #include "VL53L0X_user.h"
 #include "moving_average.h"
+
+//#define RGATE_RASPBERRY_PI_4
+#ifdef RGATE_RASPBERRY_PI_4
+#include "bcm2835.h"
+#endif
+
+#define RGATE_ORANGE_PI_5_PLUS
+#ifdef RGATE_ORANGE_PI_5_PLUS
+#include <wiringPi.h>
+#include <wiringPiSPI.h>
+#include <wiringPiI2C.h>
+#endif
+
 
 typedef enum
 {

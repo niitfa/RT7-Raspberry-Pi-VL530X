@@ -3,7 +3,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#include "bcm2835.h"
 #include "VL53L0X_user.h"
 #include "distance_sensor_shield.h"
 
@@ -15,7 +14,7 @@
 int main(int argc, char* argv[])
 {
 	DistSensor_init(4);
-	DistSensor_set_emulated(1);
+	DistSensor_set_emulated(0);
 	DistSensor_enable();
 
 
