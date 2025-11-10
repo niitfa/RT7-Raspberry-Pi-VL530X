@@ -13,8 +13,6 @@
 #define RGATE_ORANGE_PI_5_PLUS
 #ifdef RGATE_ORANGE_PI_5_PLUS
 #include <wiringPi.h>
-#include <wiringPiSPI.h>
-#include <wiringPiI2C.h>
 #endif
 
 

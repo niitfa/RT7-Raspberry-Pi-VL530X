@@ -25,6 +25,7 @@
 static const uint8_t I2C_READ = 1;
 static const uint8_t I2C_WRITE = 0;
 static const uint16_t timeoutUsMax = 2000;
+static int fd = 0; // wiringPi
 // TCC: Target CentreCheck
 // MSRC: Minimum Signal Rate Check
 // DSS: Dynamic Spad Selection
@@ -141,17 +142,17 @@ static void i2c_write(VL53L0X_t* self, uint8_t reg, uint8_t const *src, uint8_t 
 
 static void i2c_write8bit(VL53L0X_t* self, uint8_t reg, uint8_t value)
 {
-	i2c_write(self, reg, (uint8_t*)&value, 1);
+		i2c_write(self, reg, (uint8_t*)&value, 1);
 }
 
 static void i2c_write16bit(VL53L0X_t* self, uint8_t reg, uint16_t value)
 {
-	i2c_write(self, reg, (uint8_t*)&value, 2);
+		i2c_write(self, reg, (uint8_t*)&value, 2);
 }
 
 static void i2c_write32bit(VL53L0X_t* self, uint8_t reg, uint32_t value)
 {
-	i2c_write(self, reg, (uint8_t*)&value, 4);
+		i2c_write(self, reg, (uint8_t*)&value, 4);
 }
 
 static void i2c_read(VL53L0X_t* self, uint8_t reg, uint8_t *dst, uint8_t size)

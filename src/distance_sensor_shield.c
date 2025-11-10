@@ -6,15 +6,17 @@
 #include <errno.h>
 #include <math.h>
 #include <time.h>
+#include "i2c.h"
 
 typedef struct 
 {
 	VL53L0X_t vl53l0x;
-	int gpioPowerPin; // was RPiGPIOPind
+	int gpioPowerPin; // was RPiGPIOPin
 	int raw_dist_mm;
 	moving_average_t aver;
 	DistSensorStatus_t status;
 	uint8_t emulated;
+	int fd;
 } DistSensor_t;
 
 static DistSensor_t sensor;
@@ -34,6 +36,7 @@ int DistSensor_init(int averaging)
 	sensor.gpioPowerPin = RPI_GPIO_P1_07;
 #endif
 #ifdef RGATE_ORANGE_PI_5_PLUS
+	sensor.gpioPowerPin = 2; // gpio readall, column wPi
 #endif
 	// Not emulated by default
 	DistSensor_set_emulated(0);
@@ -50,7 +53,8 @@ int DistSensor_init(int averaging)
 	}
 #endif
 #ifdef RGATE_ORANGE_PI_5_PLUS
-	
+	wiringPiSetup();
+	pinMode (sensor.gpioPowerPin, OUTPUT);
 #endif
 	
 	DistSensor_disable();
@@ -99,8 +103,8 @@ void DistSensor_update()
 
 		// without handling bad values
 		// self->raw_dist_mm = VL53L0X_read_single_mm(&self->vl53l0x);
-		// with handling bad values
 
+		// with handling bad values
 		int dist = VL53L0X_read_single_mm(&sensor.vl53l0x);
 		if (dist == 8190 || dist == 8191)
 		{
@@ -147,8 +151,6 @@ void DistSensor_update()
 		usleep(30 * 1000);
 		moving_average_add(&sensor.aver, sensor.raw_dist_mm);
 	}
-
-	
 }
 
 int DistSensor_get_raw_distance_mm()
@@ -169,24 +171,25 @@ DistSensorStatus_t DistSensor_get_status()
 static void i2c_init()
 {
 #ifdef RGATE_RASPBERRY_PI_4
-	bcm2835_gpio_set(sensor.gpioPowerPin);
+	bcm2835_gpio_set(sensor.gpioPowerPin); // PowerOn
 	bcm2835_i2c_begin();
 	bcm2835_i2c_setSlaveAddress(ADDRESS);
 	bcm2835_i2c_setClockDivider(2500 * 1); // 2500 => 100 kHz, 5000 => 50 kHz, ...
 #endif
 #ifdef RGATE_ORANGE_PI_5_PLUS
-//
+	digitalWrite (sensor.gpioPowerPin, HIGH);	// PowerOn
+	I2C_init();
 #endif
 }
 
 static void i2c_deinit()
 {
 #ifdef RGATE_RASPBERRY_PI_4
-		bcm2835_i2c_end();
-		bcm2835_gpio_clr(sensor.gpioPowerPin);
+	bcm2835_i2c_end();
+	bcm2835_gpio_clr(sensor.gpioPowerPin); // PowerOff
 #endif
 #ifdef RGATE_ORANGE_PI_5_PLUS
-//
+	digitalWrite (sensor.gpioPowerPin, LOW);	// PowerOn
 #endif	
 }
 
@@ -196,8 +199,13 @@ static void i2c_receive (uint8_t DevAddr, uint8_t* pData, uint16_t len)
 	bcm2835_i2c_read(pData, len);
 #endif
 #ifdef RGATE_ORANGE_PI_5_PLUS
-//
+	//opi5_i2c_write(&ADDRESS, 1);
+	//opi5_i2c_read(ADDRESS, pData, len);
+	I2C_receive(DevAddr << 1, NULL, pData, 0, len);
 #endif
+	int data = 0;
+	memcpy(&data, pData, len);
+	printf("receive: %i\n", DevAddr);
 }
 
 static void i2c_transmit (uint8_t DevAddr, uint8_t* pData, uint16_t len)
@@ -206,8 +214,14 @@ static void i2c_transmit (uint8_t DevAddr, uint8_t* pData, uint16_t len)
 	bcm2835_i2c_write(pData, len);
 #endif
 #ifdef RGATE_ORANGE_PI_5_PLUS
-//
+	//opi5_i2c_write(&ADDRESS, 1);
+	//opi5_i2c_write(ADDRESS, pData, len);
+	 I2C_transmit(DevAddr << 1, pData, len);
+
 #endif
+	int data = 0;
+	memcpy(&data, pData, len);
+	printf("transmit: %i\n", data);
 }
 
 static void sleep_us (uint32_t us)
@@ -216,6 +230,6 @@ static void sleep_us (uint32_t us)
 	usleep(us);
 #endif	
 #ifdef RGATE_ORANGE_PI_5_PLUS
-//
+	usleep(us);
 #endif
 }
