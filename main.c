@@ -10,6 +10,9 @@
 #include <sys/time.h>
 #include <time.h>
 
+#include <wiringPi.h>
+#include <wiringPiI2C.h>
+
 int main(int argc, char* argv[])
 {
 	DistSensor_init(4);
@@ -37,8 +40,14 @@ int main(int argc, char* argv[])
 			DistSensor_get_raw_distance_mm(),
 			DistSensor_get_smoothed_distance_mm(),
 			time_ms - time_start_ms);
-		fflush(fp);
+		fflush(fp); 
 	}
+
+	/*wiringPiSetup();
+	int fd = wiringPiI2CSetup(0x53);
+	uint8_t val = 0b10110110;
+	int rd = wiringPiI2CReadReg8 (fd, 0x20);
+	printf("rd = %i\n", rd); */
 
 	return 0;
 }

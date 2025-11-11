@@ -1,232 +1,152 @@
 #include "i2c.h"
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <errno.h>
+#include <string.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <asm/ioctl.h>
 
-#define true 1
-#define false 0
+static int fd = 0;
+static uint8_t address = 0;
+static char* device = "/dev/i2c-2" ;
 
-void I2C_init(void)
+// I2C definitions
+
+#define I2C_SLAVE	0x0703
+#define I2C_SMBUS	0x0720	/* SMBus-level access */
+
+#define I2C_SMBUS_READ	1
+#define I2C_SMBUS_WRITE	0
+
+// SMBus transaction types
+
+#define I2C_SMBUS_QUICK		    0
+#define I2C_SMBUS_BYTE		    1
+#define I2C_SMBUS_BYTE_DATA	    2 
+#define I2C_SMBUS_WORD_DATA	    3
+#define I2C_SMBUS_PROC_CALL	    4
+#define I2C_SMBUS_BLOCK_DATA	    5
+#define I2C_SMBUS_I2C_BLOCK_BROKEN  6
+#define I2C_SMBUS_BLOCK_PROC_CALL   7		/* SMBus 2.0 */
+#define I2C_SMBUS_I2C_BLOCK_DATA    8
+
+// SMBus messages
+
+#define I2C_SMBUS_BLOCK_MAX	32	/* As specified in SMBus standard */	
+#define I2C_SMBUS_I2C_BLOCK_MAX	32	/* Not specified but we use same structure */
+
+union i2c_smbus_data
 {
-	I2C_INIT;
-    I2C_SET_SDA;
-    I2C_SET_SCL;
+  uint8_t  byte ;
+  uint16_t word ;
+  uint8_t  block [I2C_SMBUS_BLOCK_MAX + 2] ;	// block [0] is used for length + one more for PEC
+} ;
+
+struct i2c_smbus_ioctl_data
+{
+  char read_write ;
+  uint8_t command ;
+  int size ;
+  union i2c_smbus_data *data ;
+} ;
+
+static int wiringPiI2CReadBlockData (int fd, int reg, uint8_t *values, uint8_t size);
+static int wiringPiI2CWriteBlockData (int fd, int reg, const uint8_t *values, uint8_t size);
+static inline int i2c_smbus_access (int fd, char rw, uint8_t command, int size, union i2c_smbus_data *data);
+static int _wiringPiI2CSetupInterface (const char *device, int devId);
+static int _wiringPiI2CSetup (const int devId);
+
+
+void I2C_Init(uint8_t addr)
+{
+    wiringPiSetup(); 
+    fd = _wiringPiI2CSetup(addr << 1);
+   //printf("fd = %i\n", fd);
+    address = addr;
 }
 
-void I2C_start_cond(void)
+void I2C_Read(uint8_t* buff, uint8_t len)
 {
-    I2C_SET_SCL
-    I2C_SET_SDA
-    I2C_DELAY
-    I2C_CLEAR_SDA
-    I2C_DELAY
-    I2C_CLEAR_SCL
-    I2C_DELAY
+    int rd = wiringPiI2CReadBlockData (fd, 0, buff, len);   
+    //printf("rd = %i\n", rd);
 }
 
-void I2C_stop_cond(void)
+void I2C_Write(const uint8_t* buff, uint8_t len)
 {
-    I2C_CLEAR_SDA
-    I2C_DELAY
-    I2C_SET_SCL
-    I2C_DELAY
-    I2C_SET_SDA
-    I2C_DELAY
+    int wr = wiringPiI2CWriteBlockData (fd, 0, buff, len); 
+  // printf("wr = %i\n", wr);
 }
 
-void I2C_write_bit(uint8_t b)
+static int wiringPiI2CReadBlockData (int fd, int reg, uint8_t *values, uint8_t size)
 {
-    if (b > 0)
-        I2C_SET_SDA
-    else
-        I2C_CLEAR_SDA
+  union i2c_smbus_data data;
 
-    I2C_DELAY
-    I2C_SET_SCL
-    I2C_DELAY
-    I2C_CLEAR_SCL
+  if (size>I2C_SMBUS_BLOCK_MAX) {
+    size = I2C_SMBUS_BLOCK_MAX;
+  }
+  data.block[0] = size;
+  int result = i2c_smbus_access (fd, I2C_SMBUS_READ, reg, I2C_SMBUS_I2C_BLOCK_DATA, &data);
+  if (result<0) {
+    return result;
+  }
+  memcpy(values, &data.block[1], size);
+  return data.block[0];
 }
 
-uint8_t I2C_read_SDA(void)
+int wiringPiI2CWriteBlockData (int fd, int reg, const uint8_t *values, uint8_t size)
 {
-    /*if (HAL_GPIO_ReadPin(SW_I2C_SDA_GPIO_Port, SW_I2C_SDA_Pin) == GPIO_PIN_SET)
-        return 1;
-    else
-        return 0;
-    return 0; */
+    union i2c_smbus_data data;
 
-    return I2C_READ_SDA;
-}
-
-// Reading a bit in I2C:
-uint8_t I2C_read_bit(void)
-{
-    uint8_t b;
-
-    I2C_SET_SDA
-    I2C_DELAY
-    I2C_SET_SCL
-    I2C_DELAY
-
-    b = I2C_read_SDA();
-
-    I2C_CLEAR_SCL
-
-    return b;
-}
-
-_Bool I2C_write_byte(uint8_t B,
-                     _Bool start,
-                     _Bool stop)
-{
-    uint8_t ack = 0;
-
-    if (start)
-        I2C_start_cond();
-
-    uint8_t i;
-    for (i = 0; i < 8; i++)
-    {
-        I2C_write_bit(B & 0x80); // write the most-significant bit
-        B <<= 1;
+    if (size>I2C_SMBUS_BLOCK_MAX) {
+      size = I2C_SMBUS_BLOCK_MAX;
     }
-
-    ack = I2C_read_bit();
-
-    if (stop)
-        I2C_stop_cond();
-
-    return !ack; //0-ack, 1-nack
+    data.block[0] = size;
+    memcpy(&data.block[1], values, size);
+    return i2c_smbus_access (fd, I2C_SMBUS_WRITE, reg, I2C_SMBUS_BLOCK_DATA, &data) ;
 }
 
-// Reading a byte with I2C:
-uint8_t I2C_read_byte(_Bool ack, _Bool stop)
+static inline int i2c_smbus_access (int fd, char rw, uint8_t command, int size, union i2c_smbus_data *data)
 {
-    uint8_t B = 0;
+  struct i2c_smbus_ioctl_data args ;
 
-    uint8_t i;
-    for (i = 0; i < 8; i++)
-    {
-        B <<= 1;
-        B |= I2C_read_bit();
-    }
+  args.read_write = rw ;
+  args.command    = command ;
+  args.size       = size ;
+  args.data       = data ;
 
-    if (ack)
-        I2C_write_bit(0);
-    else
-        I2C_write_bit(1);
-
-    if (stop)
-        I2C_stop_cond();
-
-    return B;
+  //int res = ioctl (fd, I2C_SMBUS, &args) ;
+  //printf("ioctl: %i\n", res);
+  //return res;
+  return ioctl (fd, I2C_SMBUS, &args) ;
 }
 
-// Sending a byte with I2C:
-_Bool I2C_send_byte(uint8_t address,
-                    uint8_t data)
+static int _wiringPiI2CSetupInterface (const char *device, int devId)
 {
-    //    if( I2C_write_byte( address << 1, true, false ) )   // start, send address, write
-    if (I2C_write_byte(address, true, false)) // start, send address, write
-    {
-        // send data, stop
-        if (I2C_write_byte(data, false, true))
-            return true;
-    }
+  int fd ;
 
-    I2C_stop_cond(); // make sure to impose a stop if NAK'd
-    return false;
+  if ((fd = open (device, O_RDWR)) < 0)
+    return wiringPiFailure (WPI_ALMOST, "Unable to open I2C device: %s\n", strerror (errno)) ;
+
+  if (ioctl (fd, I2C_SLAVE, devId) < 0)
+    return wiringPiFailure (WPI_ALMOST, "Unable to select I2C device: %s\n", strerror (errno)) ;
+
+  return fd ;
 }
 
-// Receiving a byte with a I2C:
-uint8_t I2C_receive_byte(uint8_t address)
+
+/*
+ * wiringPiI2CSetup:
+ *	Open the I2C device, and regsiter the target device
+ *********************************************************************************
+ */
+
+static int _wiringPiI2CSetup (const int devId)
 {
-    if (I2C_write_byte((address << 1) | 0x01, true, false)) // start, send address, read
-    {
-        return I2C_read_byte(false, true);
-    }
-
-    return 0; // return zero if NAK'd
-}
-
-// Sending a byte of data with I2C:
-_Bool I2C_send_byte_data(uint8_t address,
-                         uint8_t reg,
-                         uint8_t data)
-{
-    //    if( I2C_write_byte( address << 1, true, false ) )   // start, send address, write
-    if (I2C_write_byte(address, true, false))
-    {
-        if (I2C_write_byte(reg, false, false)) // send desired register
-        {
-            if (I2C_write_byte(data, false, true))
-                return true; // send data, stop
-        }
-    }
-
-    I2C_stop_cond();
-    return false;
-}
-
-// Receiving a byte of data with I2C:
-uint8_t I2C_receive_byte_data(uint8_t address,
-                              uint8_t reg)
-{
-    //if( I2C_write_byte( address << 1, true, false ) )   // start, send address, write
-    if (I2C_write_byte(address, true, false))
-    {
-        if (I2C_write_byte(reg, false, false)) // send desired register
-        {
-            if (I2C_write_byte((address << 1) | 0x01, true, false)) // start again, send address, read
-            {
-                return I2C_read_byte(false, true); // read data
-            }
-        }
-    }
-
-    I2C_stop_cond();
-    return 0; // return zero if NACKed
-}
-
-_Bool I2C_transmit(uint8_t address, uint8_t data[], uint8_t size)
-{
-    if (I2C_write_byte(address, true, false)) // first byte
-    {
-        for (int i = 0; i < size; i++)
-        {
-            if (i == size - 1)
-            {
-                if (I2C_write_byte(data[i], false, true))
-                    return true;
-            }
-            else
-            {
-                if (!I2C_write_byte(data[i], false, false))
-                    break; //last byte
-            }
-        }
-    }
-
-    I2C_stop_cond();
-    return false;
-}
-
-_Bool I2C_receive(uint8_t address, uint8_t reg[], uint8_t *data, uint8_t reg_size, uint8_t size)
-{
-    if (I2C_write_byte(address, true, false))
-    {
-        for (int i = 0; i < reg_size; i++)
-        {
-            if (!I2C_write_byte(reg[i], false, false))
-                break;
-        }
-        if (I2C_write_byte(address | 0x01, true, false)) // start again, send address, read (LSB signifies R or W)
-        {
-            for (int j = 0; j < size; j++)
-            {
-                *data++ = I2C_read_byte(false, false); // read data
-            }
-            I2C_stop_cond();
-            return true;
-        }
-    }
-    I2C_stop_cond();
-    return false;
+	int rev ;
+	int model;
+	piBoardId(&model);
+	return wiringPiI2CSetupInterface (device, devId) ;
 }

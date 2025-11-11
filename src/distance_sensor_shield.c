@@ -6,7 +6,6 @@
 #include <errno.h>
 #include <math.h>
 #include <time.h>
-#include "i2c.h"
 
 typedef struct 
 {
@@ -21,7 +20,7 @@ typedef struct
 
 static DistSensor_t sensor;
 
-static const uint8_t ADDRESS = (0x52 >> 1);
+static const uint8_t ADDRESS = 0x52 >> 1;//(0x52);
 
 static void i2c_init();
 static void i2c_deinit();
@@ -173,12 +172,12 @@ static void i2c_init()
 #ifdef RGATE_RASPBERRY_PI_4
 	bcm2835_gpio_set(sensor.gpioPowerPin); // PowerOn
 	bcm2835_i2c_begin();
-	bcm2835_i2c_setSlaveAddress(ADDRESS);
+	bcm2835_i2c_setSlaveAddress(ADDRESS >> 1);
 	bcm2835_i2c_setClockDivider(2500 * 1); // 2500 => 100 kHz, 5000 => 50 kHz, ...
 #endif
 #ifdef RGATE_ORANGE_PI_5_PLUS
 	digitalWrite (sensor.gpioPowerPin, HIGH);	// PowerOn
-	I2C_init();
+	I2C_Init(ADDRESS >> 1);
 #endif
 }
 
@@ -199,13 +198,8 @@ static void i2c_receive (uint8_t DevAddr, uint8_t* pData, uint16_t len)
 	bcm2835_i2c_read(pData, len);
 #endif
 #ifdef RGATE_ORANGE_PI_5_PLUS
-	//opi5_i2c_write(&ADDRESS, 1);
-	//opi5_i2c_read(ADDRESS, pData, len);
-	I2C_receive(DevAddr << 1, NULL, pData, 0, len);
+	I2C_Read(pData, len);
 #endif
-	int data = 0;
-	memcpy(&data, pData, len);
-	printf("receive: %i\n", DevAddr);
 }
 
 static void i2c_transmit (uint8_t DevAddr, uint8_t* pData, uint16_t len)
@@ -214,14 +208,8 @@ static void i2c_transmit (uint8_t DevAddr, uint8_t* pData, uint16_t len)
 	bcm2835_i2c_write(pData, len);
 #endif
 #ifdef RGATE_ORANGE_PI_5_PLUS
-	//opi5_i2c_write(&ADDRESS, 1);
-	//opi5_i2c_write(ADDRESS, pData, len);
-	 I2C_transmit(DevAddr << 1, pData, len);
-
+	I2C_Write(pData, len);
 #endif
-	int data = 0;
-	memcpy(&data, pData, len);
-	printf("transmit: %i\n", data);
 }
 
 static void sleep_us (uint32_t us)
