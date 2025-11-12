@@ -188,7 +188,7 @@ static void i2c_deinit()
 	bcm2835_gpio_clr(sensor.gpioPowerPin); // PowerOff
 #endif
 #ifdef RGATE_ORANGE_PI_5_PLUS
-	digitalWrite (sensor.gpioPowerPin, LOW);	// PowerOn
+	digitalWrite (sensor.gpioPowerPin, LOW); // PowerOn
 #endif	
 }
 

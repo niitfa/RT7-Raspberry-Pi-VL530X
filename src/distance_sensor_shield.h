@@ -5,12 +5,12 @@
 #include "VL53L0X_user.h"
 #include "moving_average.h"
 
-//#define RGATE_RASPBERRY_PI_4
+//#define RGATE_RASPBERRY_PI_4 // USE RASPBERRY PI 4
 #ifdef RGATE_RASPBERRY_PI_4
 #include "bcm2835.h"
 #endif
 
-#define RGATE_ORANGE_PI_5_PLUS
+#define RGATE_ORANGE_PI_5_PLUS // USE ORANGEPI 5 PLUS
 #ifdef RGATE_ORANGE_PI_5_PLUS
 #include <wiringPi.h>
 #include "i2c.h"

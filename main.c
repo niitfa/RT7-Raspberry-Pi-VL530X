@@ -19,7 +19,6 @@ int main(int argc, char* argv[])
 	DistSensor_set_emulated(0);
 	DistSensor_enable();
 
-
 	char * filename = "dist.txt";
 	FILE *fp = fopen(filename, "w+");
 	struct timespec stop, start;
@@ -42,12 +41,5 @@ int main(int argc, char* argv[])
 			time_ms - time_start_ms);
 		fflush(fp); 
 	}
-
-	/*wiringPiSetup();
-	int fd = wiringPiI2CSetup(0x53);
-	uint8_t val = 0b10110110;
-	int rd = wiringPiI2CReadReg8 (fd, 0x20);
-	printf("rd = %i\n", rd); */
-
 	return 0;
 }

@@ -4,7 +4,47 @@
 
 Для опроса датчика нужны root права, для работы в режиме эмулятора - нет.
 
-Сборка и запуск примера:
-cmake .
-make
+---------- Сборка и запуск примера на Raspberry Pi CM4 ----------
+
+В файле src/dist_sensor_shield.h раскомментировать макрос
+#define RGATE_RASPBERRY_PI_4
+остальные define макросы в этой секции закомментировать
+
+Из папки проекта
+# cmake .
+# make
+Запустить пример для проверки
+# sudo ./run
+
+
+---------- Сборка и запуск примера на Orange Pi 5 Plus ----------
+
+1. Установить wiringOP
+# apt-get update
+# apt-get install -y git
+# git clone https://github.com/orangepi-xunlong/wiringOP.git
+# cd wiringOP
+# ./build clean
+# ./build 
+
+2.  Настроить интерфейс i2c (i2c2-m0) (Physical Pins: 3 (SDA.2) и 5 (SCL.2))
+Открыть файл конфигурации
+# sudo nano /boot/orangepiEnv.txt
+В конец файла добавить строку
+overlays = i2c2-m0
+Перезагрузить компьютер
+# reboot
+
+2. Собрать библиотеку libDistSensor.so для датчика дыхания из этого проекта
+Клонировать  репозиторий.
+В файле src/dist_sensor_shield.h раскомментировать макрос
+#define RGATE_ORANGE_PI_5_PLUS
+остальные define макросы в этой секции закомментировать
+
+Из папки проекта
+# cmake .
+# make
+Запустить пример для проверки
 sudo ./run
+
+Библиотеку libDistSensor.so использовать в проекте с графическим интерфейсом.
