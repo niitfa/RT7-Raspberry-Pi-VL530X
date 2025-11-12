@@ -21,7 +21,6 @@ add_executable(${exec_target} main${source_ext} ${sources})
 add_executable(${off_target} off${source_ext} ${sources})
 add_library(DistSensor SHARED ${sources})
 
-
 target_link_libraries(${exec_target} m wiringPi)
 target_link_libraries(${off_target} m wiringPi)
 

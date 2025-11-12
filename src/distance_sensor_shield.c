@@ -20,7 +20,7 @@ typedef struct
 
 static DistSensor_t sensor;
 
-static const uint8_t ADDRESS = 0x52 >> 1;//(0x52);
+static const uint8_t ADDRESS = (0x52 >> 1);
 
 static void i2c_init();
 static void i2c_deinit();
@@ -172,12 +172,12 @@ static void i2c_init()
 #ifdef RGATE_RASPBERRY_PI_4
 	bcm2835_gpio_set(sensor.gpioPowerPin); // PowerOn
 	bcm2835_i2c_begin();
-	bcm2835_i2c_setSlaveAddress(ADDRESS >> 1);
+	bcm2835_i2c_setSlaveAddress(ADDRESS);
 	bcm2835_i2c_setClockDivider(2500 * 1); // 2500 => 100 kHz, 5000 => 50 kHz, ...
 #endif
 #ifdef RGATE_ORANGE_PI_5_PLUS
 	digitalWrite (sensor.gpioPowerPin, HIGH);	// PowerOn
-	I2C_Init(ADDRESS >> 1);
+	I2C_Init(ADDRESS);
 #endif
 }
 
